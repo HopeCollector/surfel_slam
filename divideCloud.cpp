@@ -3,6 +3,7 @@
 #include <vector>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <math.h>
 
 #define gridLength 1.0
 
@@ -81,33 +82,30 @@ int main(int argc, char* argv[]){
     viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "xyziCloud");
     viewer->addCoordinateSystem (1.0);
     viewer->initCameraParameters ();
-/*
+
     for(int i = 0; i < surfelCloud->size(); i++){
         pcl::PointXYZINormal p = surfelCloud->points[i];
+        if(p.intensity == 0) continue;
         coeffs.values.clear();
         coeffs.values.push_back (p.x);
         coeffs.values.push_back (p.y);
         coeffs.values.push_back (p.z);
-        coeffs.values.push_back (p.normal_x);
-        coeffs.values.push_back (p.normal_y);
-        coeffs.values.push_back (p.normal_z);
-        coeffs.values.push_back (p.intensity);
+        coeffs.values.push_back (p.normal_x*0.15);
+        coeffs.values.push_back (p.normal_y*0.15);
+        coeffs.values.push_back (p.normal_z*0.15);
+        coeffs.values.push_back (std::atan(p.intensity*500)*50);
         viewer->addCone (coeffs, "cone" + std::to_string(i));
     }
-  
-*/
 
+
+/*
     pcl::PointXYZINormal p = surfelCloud->points[0];
-    coeffs.values.clear();
-    coeffs.values.push_back (p.x);
-    coeffs.values.push_back (p.y);
-    coeffs.values.push_back (p.z);
-    coeffs.values.push_back (p.normal_x);
-    coeffs.values.push_back (p.normal_y);
-    coeffs.values.push_back (p.normal_z);
-    coeffs.values.push_back (p.intensity);
-    viewer->addCone (coeffs, "cone");
-
+    pcl::PointXYZ p1(p.x,p.y,p.z);
+    pcl::PointXYZ p2((p.x+p.normal_x)*atan(p.intensity),
+                    (p.y+p.normal_y)*atan(p.intensity),
+                    (p.z+p.normal_z)*atan(p.intensity));
+    viewer->addArrow(p1,p2,1.0,1.0,1.0,"arrow" + std::to_string(0));
+*/
     while (!viewer->wasStopped())
     {
         viewer->spinOnce(100);
