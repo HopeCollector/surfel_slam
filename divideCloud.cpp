@@ -2,6 +2,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <vector>
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 #define gridLength 1.0
 
@@ -69,6 +70,49 @@ int main(int argc, char* argv[]){
     }
 
     cout << "\nSurfel extract complete!\n" << "Surfel map size: " << surfelCloud->size() << endl;
+
+    pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> handler ("intensity");
+    pcl::ModelCoefficients coeffs;
+
+    handler.setInputCloud(cloud);
+    viewer->setBackgroundColor(0,0,0);
+    viewer->addPointCloud<pcl::PointXYZI>(cloud, handler, "xyziCloud");
+    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "xyziCloud");
+    viewer->addCoordinateSystem (1.0);
+    viewer->initCameraParameters ();
+/*
+    for(int i = 0; i < surfelCloud->size(); i++){
+        pcl::PointXYZINormal p = surfelCloud->points[i];
+        coeffs.values.clear();
+        coeffs.values.push_back (p.x);
+        coeffs.values.push_back (p.y);
+        coeffs.values.push_back (p.z);
+        coeffs.values.push_back (p.normal_x);
+        coeffs.values.push_back (p.normal_y);
+        coeffs.values.push_back (p.normal_z);
+        coeffs.values.push_back (p.intensity);
+        viewer->addCone (coeffs, "cone" + std::to_string(i));
+    }
+  
+*/
+
+    pcl::PointXYZINormal p = surfelCloud->points[0];
+    coeffs.values.clear();
+    coeffs.values.push_back (p.x);
+    coeffs.values.push_back (p.y);
+    coeffs.values.push_back (p.z);
+    coeffs.values.push_back (p.normal_x);
+    coeffs.values.push_back (p.normal_y);
+    coeffs.values.push_back (p.normal_z);
+    coeffs.values.push_back (p.intensity);
+    viewer->addCone (coeffs, "cone");
+
+    while (!viewer->wasStopped())
+    {
+        viewer->spinOnce(100);
+        boost::this_thread::sleep(boost::posix_time::microseconds (100000));
+    }
 
     return 0;
 }
