@@ -15,9 +15,9 @@ typedef std::vector<pcl::PointXYZI> Grid;
 
 // 从 vector 中制作点云
 XYZICloudPtr genCloud(Grid);
-
 // 将栅格中的所有点转换为一个 Surfel 特征
 pcl::PointXYZINormal genSurfel(Grid);
+// 将实对称矩阵分解为特征向量和特征值
 int eejcb(float a[], int n, float v[], float eps, int jt);
 
 int main(int argc, char* argv[]){
@@ -210,8 +210,7 @@ pcl::PointXYZINormal genSurfel(Grid points){
 }
 
 // 将矩阵分解为特征值和特征向量
-int eejcb(float a[], int n, float v[], float eps, int jt) 
-{ 
+int eejcb(float a[], int n, float v[], float eps, int jt) { 
 	int i,j,p,q,u,w,t,s,l; 
 	float fm,cn,sn,omega,x,y,d; 
 	l=1; 

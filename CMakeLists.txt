@@ -17,11 +17,11 @@ add_definitions(${PCL_DEFINITIONS})
 # add_executable (icp icp.cpp)
 # target_link_libraries (icp ${PCL_LIBRARIES})
 
-# add_executable (kd kd.cpp)
-# target_link_libraries (kd ${PCL_LIBRARIES})
+add_executable (kd kd.cpp ioVis.cpp)
+target_link_libraries (kd ${PCL_LIBRARIES})
 
-add_executable (div divideCloud.cpp ioVis.cpp)
-target_link_libraries (div ${PCL_LIBRARIES})
+# add_executable (div divideCloud.cpp ioVis.cpp)
+# target_link_libraries (div ${PCL_LIBRARIES})
 
 # add_executable (test test.cpp ioVis.cpp)
 # target_link_libraries (test ${PCL_LIBRARIES})
