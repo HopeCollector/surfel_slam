@@ -6,7 +6,7 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <math.h>
 
-#define gridLength 1.0
+#define gridLength 0.8
 
 struct PairPoint{
 	pcl::PointXYZINormal p1;
