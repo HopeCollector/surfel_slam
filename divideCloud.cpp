@@ -11,26 +11,29 @@ typedef pcl::PointCloud<pcl::PointXYZI>::Ptr XYZICloudPtr;
 typedef pcl::PointCloud<pcl::PointXYZI> XYZICloud;
 typedef pcl::PointCloud<pcl::PointXYZINormal>::Ptr SurfelCloudPtr;
 typedef pcl::PointCloud<pcl::PointXYZINormal> SurfelCloud;
+typedef std::vector<pcl::PointXYZI> Grid;
 
-XYZICloudPtr genCloud(std::vector<pcl::PointXYZI>);
-pcl::PointXYZINormal genSurfel(std::vector<pcl::PointXYZI>);
+// 从 vector 中制作点云
+XYZICloudPtr genCloud(Grid);
+
+// 将栅格中的所有点转换为一个 Surfel 特征
+pcl::PointXYZINormal genSurfel(Grid);
 int eejcb(float a[], int n, float v[], float eps, int jt);
 
 int main(int argc, char* argv[]){
     XYZICloudPtr cloud = getFile(argv[1]);
     SurfelCloudPtr surfelCloud(new SurfelCloud);
-    std::vector<pcl::PointXYZ> points;
     float max_x,min_x = 0;
     float max_y,min_y = 0;
     float max_z,min_z = 0;
 
-    for (int i=0; i < cloud->size(); i++)
+	// 找到点云数据的边界
+    for (int i=0; i < cloud->size(); i++) 
     {
         pcl::PointXYZ point;
         point.x = cloud->points[i].x;
         point.y = cloud->points[i].y;
         point.z = cloud->points[i].z;
-        points.push_back(point);
 
         max_x = point.x > max_x ? point.x : max_x;
         min_x = point.x < min_x ? point.x : min_x;
@@ -42,15 +45,17 @@ int main(int argc, char* argv[]){
         min_z = point.z < min_z ? point.z : min_z;
     }
 
-    cout << "x 边界 " <<max_x << " " << min_x << endl;
-    cout << "y 边界 " <<max_y << " " << min_y << endl;
-    cout << "z 边界 " <<max_z << " " << min_z << endl;
+    // cout << "x 边界 " <<max_x << " " << min_x << endl;
+    // cout << "y 边界 " <<max_y << " " << min_y << endl;
+    // cout << "z 边界 " <<max_z << " " << min_z << endl;
 
+	// 计算应该切分成多少快
     const int xBlockNum = (max_x - min_x) / gridLength;
     const int yBlockNum = (max_y - min_y) / gridLength;
     const int zBlockNum = (max_z - min_z) / gridLength;
-    std::vector<pcl::PointXYZI> subClouds[xBlockNum+1][yBlockNum+1][zBlockNum+1];
+    Grid subClouds[xBlockNum+1][yBlockNum+1][zBlockNum+1];
 
+	// 将不同的点根据其坐标分配到不同的栅格里
     for(int i = 0; i < cloud->size(); i++){
         pcl::PointXYZI point = cloud->points[i];
 
@@ -61,6 +66,7 @@ int main(int argc, char* argv[]){
         subClouds[xPos][yPos][zPos].push_back(point);
     }
 
+	// 将栅格中的所有点用一个带有 Surfel 特征的中心点代表
     for(int i = 0; i < zBlockNum; i++){
         for(int j = 0; j < yBlockNum; j++){
             for(int k = 0; k < xBlockNum; k++){
@@ -72,6 +78,8 @@ int main(int argc, char* argv[]){
 
     cout << "\nSurfel extract complete!\n" << "Surfel map size: " << surfelCloud->size() << endl;
 
+
+	// 显示部分
     pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> handler ("intensity");
     pcl::ModelCoefficients coeffs;
@@ -83,17 +91,19 @@ int main(int argc, char* argv[]){
     viewer->addCoordinateSystem (1.0);
     viewer->initCameraParameters ();
 
+
+	// 将 Surfel 以圆锥的形式画出来，所有的实参都是测试出来的
     for(int i = 0; i < surfelCloud->size(); i++){
         pcl::PointXYZINormal p = surfelCloud->points[i];
         if(p.intensity == 0) continue;
         coeffs.values.clear();
-        coeffs.values.push_back (p.x);
+        coeffs.values.push_back (p.x);// 三个数字表示圆锥的位置
         coeffs.values.push_back (p.y);
         coeffs.values.push_back (p.z);
-        coeffs.values.push_back (p.normal_x*0.15);
+        coeffs.values.push_back (p.normal_x*0.15); // 三个数字表示圆锥的朝向，同时用 sqrt(x*x + y*y + z*z) 计算圆锥的高度
         coeffs.values.push_back (p.normal_y*0.15);
         coeffs.values.push_back (p.normal_z*0.15);
-        coeffs.values.push_back (std::atan(p.intensity*500)*50);
+        coeffs.values.push_back (std::atan(p.intensity*500)*50); // 圆锥的角度 [0～90]，arctan 是为了归一化
         viewer->addCone (coeffs, "cone" + std::to_string(i));
     }
 
@@ -115,17 +125,17 @@ int main(int argc, char* argv[]){
     return 0;
 }
 
-XYZICloudPtr genCloud(std::vector<pcl::PointXYZI> points){
+XYZICloudPtr genCloud(Grid points){
     XYZICloudPtr cloud(new pcl::PointCloud<pcl::PointXYZI>);
 
-    for(std::vector<pcl::PointXYZI>::iterator point = points.begin(); point != points.end(); point ++){
+    for(Grid::iterator point = points.begin(); point != points.end(); point ++){
         cloud->push_back(*point);
     }
     
     return cloud;
 }
 
-pcl::PointXYZINormal genSurfel(std::vector<pcl::PointXYZI> points){
+pcl::PointXYZINormal genSurfel(Grid points){
     if(points.empty()){
         pcl::PointXYZINormal point;
         point.normal_x = 0;
@@ -139,7 +149,7 @@ pcl::PointXYZINormal genSurfel(std::vector<pcl::PointXYZI> points){
     float v[9] = {0.0};
 
 
-    for(std::vector<pcl::PointXYZI>::iterator point = points.begin(); point != points.end(); point ++){
+    for(Grid::iterator point = points.begin(); point != points.end(); point ++){
         centerPoint.x += point->x;
         centerPoint.y += point->y;
         centerPoint.z += point->z;   
@@ -149,7 +159,7 @@ pcl::PointXYZINormal genSurfel(std::vector<pcl::PointXYZI> points){
     centerPoint.z = centerPoint.z / points.size();
 
     //2) 协方差矩阵cov
-	for(std::vector<pcl::PointXYZI>::iterator point = points.begin(); point != points.end(); point ++)
+	for(Grid::iterator point = points.begin(); point != points.end(); point ++)
 	{
 		float buf[3];
 		buf[0] = point->x - centerPoint.x;
