@@ -1,12 +1,11 @@
 #include "ioVis.h"
 #include <pcl/filters/voxel_grid.h>
 #include <vector>
-#include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <math.h>
 
-#define gridLength 0.8
+#define gridLength 1.5
 
 struct PairPoint{
 	pcl::PointXYZINormal p1;
@@ -61,8 +60,8 @@ int main(int argc, char* argv[]){
 	pcl::visualization::PCLVisualizer viewer("kdtree");
 	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> handler1 (cloud1, 255, 255, 255);
 	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> handler2 (cloud2, 255, 255, 255);
-	int v1(0);
-	int v2(1);
+	int v1(1);
+	int v2(2);
 
 	viewer.createViewPort(0.0,0.0,0.5,1.0,v1);
 	viewer.createViewPort(0.5,0.0,1.0,1.0,v2);
@@ -84,6 +83,8 @@ int main(int argc, char* argv[]){
 					   pair.p2.y-0.5,pair.p2.y+0.5,
 					   pair.p2.z-0.5,pair.p2.z+0.5,
 					   rgb[0],rgb[1],rgb[2],"cube"+std::to_string(i)+"d",v2);
+		viewer.addText3D<pcl::PointXYZINormal>("A "+std::to_string(i),pair.p1,0.4,rgb[0],rgb[1],rgb[2],"string"+std::to_string(i),2);	  // 如果想在单独的坐标系中添加文字，需要用 viewport+1 才行
+		viewer.addText3D<pcl::PointXYZINormal>("B "+std::to_string(i),pair.p2,0.4,rgb[0],rgb[1],rgb[2],"string"+std::to_string(i)+"d",3); // 如果用的是 0,那会把所有坐标系都添加上一样的文字
 		viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "cube"+std::to_string(i));
 		viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "cube"+std::to_string(i)+"d");
 	}
