@@ -8,6 +8,11 @@
 
 #define gridLength 1.0
 
+struct PairPoint{
+	pcl::PointXYZINormal p1;
+	pcl::PointXYZINormal p2;
+};
+
 typedef pcl::PointCloud<pcl::PointXYZI>::Ptr XYZICloudPtr;
 typedef pcl::PointCloud<pcl::PointXYZI> XYZICloud;
 typedef pcl::PointCloud<pcl::PointXYZINormal>::Ptr SurfelCloudPtr;
@@ -24,9 +29,13 @@ int eejcb(float a[], int n, float v[], float eps, int jt);
 SurfelCloudPtr cloud2Surfel(XYZICloudPtr);
 
 int main(int argc, char* argv[]){
-    SurfelCloudPtr surfel1 = cloud2Surfel(getFile(argv[1]));
-    SurfelCloudPtr surfel2 = cloud2Surfel(getFile(argv[2]));
+	XYZICloudPtr cloud1 = getFile(argv[1]);
+	XYZICloudPtr cloud2 = getFile(argv[2]);
+    SurfelCloudPtr surfel1 = cloud2Surfel(cloud1);
+    SurfelCloudPtr surfel2 = cloud2Surfel(cloud2);
+	std::vector<PairPoint> points;
     pcl::KdTreeFLANN<pcl::PointXYZINormal> kdtree;
+	srand((unsigned)time(NULL));
 
 	kdtree.setInputCloud(surfel1);
 
@@ -40,12 +49,50 @@ int main(int argc, char* argv[]){
 				 << ") ";
 
 			cout << "    " << surfel1->points[idx[0]].x
-				 << " " << surfel2->points[idx[0]].y
-				 << " " << surfel2->points[idx[0]].z
+				 << " " << surfel1->points[idx[0]].y
+				 << " " << surfel1->points[idx[0]].z
 				 << " (distance: " << distance[0] << ")" << endl;
+
+			PairPoint p = {surfel1->points[idx[0]],surfel2->points[i]};
+			points.push_back(p);
 		}
 	}
 
+	pcl::visualization::PCLVisualizer viewer("kdtree");
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> handler1 (cloud1, 255, 255, 255);
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> handler2 (cloud2, 255, 255, 255);
+	int v1(0);
+	int v2(1);
+
+	viewer.createViewPort(0.0,0.0,0.5,1.0,v1);
+	viewer.createViewPort(0.5,0.0,1.0,1.0,v2);
+	viewer.setBackgroundColor(0,0,0);
+	viewer.addPointCloud<pcl::PointXYZI>(cloud1,handler1,"before",v1);
+	viewer.addPointCloud<pcl::PointXYZI>(cloud2,handler2,"after",v2);
+	viewer.addCoordinateSystem(1.0);
+	viewer.initCameraParameters();
+
+	for(int i = 0; i < points.size(); i++){
+		if(i % 40 != 0) continue;
+		auto pair = points[i];
+		double rgb[3] = {((double)(rand()%100))/100.0,((double)(rand()%100))/100.0,((double)(rand()%100))/100.0};
+		viewer.addCube(pair.p1.x-0.5,pair.p1.x+0.5,
+					   pair.p1.y-0.5,pair.p1.y+0.5,
+					   pair.p1.z-0.5,pair.p1.z+0.5,
+					   rgb[0],rgb[1],rgb[2],"cube"+std::to_string(i),v1);
+		viewer.addCube(pair.p2.x-0.5,pair.p2.x+0.5,
+					   pair.p2.y-0.5,pair.p2.y+0.5,
+					   pair.p2.z-0.5,pair.p2.z+0.5,
+					   rgb[0],rgb[1],rgb[2],"cube"+std::to_string(i)+"d",v2);
+		viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "cube"+std::to_string(i));
+		viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "cube"+std::to_string(i)+"d");
+	}
+
+	while (!viewer.wasStopped())
+    {
+        viewer.spinOnce(100);
+        boost::this_thread::sleep(boost::posix_time::microseconds (100000));
+    }
 
 
     return 0;
