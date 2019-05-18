@@ -1,6 +1,7 @@
 build/
 monkey.ply
 .vscode/
+*.csv
 
 !build/000000.bin
 !build/000001.bin

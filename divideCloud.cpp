@@ -1,11 +1,16 @@
 #include "ioVis.h"
 #include <pcl/filters/voxel_grid.h>
 #include <vector>
-#include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <math.h>
 
 #define gridLength 1.0
+#define Pos(x,y,z) (x + y*(xBlockNum) + z*(xBlockNum)*(yBlockNum))
+
+struct ProTime{
+	std::string proName;
+	std::clock_t proTime;
+};
 
 typedef pcl::PointCloud<pcl::PointXYZI>::Ptr XYZICloudPtr;
 typedef pcl::PointCloud<pcl::PointXYZI> XYZICloud;
@@ -23,61 +28,56 @@ int eejcb(float a[], int n, float v[], float eps, int jt);
 int main(int argc, char* argv[]){
     XYZICloudPtr cloud = getFile(argv[1]);
     SurfelCloudPtr surfelCloud(new SurfelCloud);
-    float max_x,min_x = 0;
-    float max_y,min_y = 0;
-    float max_z,min_z = 0;
+	std::vector<ProTime> totalRunTime(3);
+	std::map<std::string,Grid> subClouds;
+    float min_x = 0;
+    float min_y = 0;
+    float min_z = 0;
+
+	totalRunTime[0].proName = "findBound";
+	totalRunTime[1].proName = "gridMash";
+	totalRunTime[2].proName = "genSurfel";
 
 	// 找到点云数据的边界
-    for (int i=0; i < cloud->size(); i++) 
-    {
-        pcl::PointXYZ point;
-        point.x = cloud->points[i].x;
-        point.y = cloud->points[i].y;
-        point.z = cloud->points[i].z;
-
-        max_x = point.x > max_x ? point.x : max_x;
+	totalRunTime[0].proTime = clock();
+    for (auto point : cloud->points) {
         min_x = point.x < min_x ? point.x : min_x;
-
-        max_y = point.y > max_y ? point.y : max_y;
         min_y = point.y < min_y ? point.y : min_y;
-
-        max_z = point.z > max_z ? point.z : max_z;
         min_z = point.z < min_z ? point.z : min_z;
     }
-
-    // cout << "x 边界 " <<max_x << " " << min_x << endl;
-    // cout << "y 边界 " <<max_y << " " << min_y << endl;
-    // cout << "z 边界 " <<max_z << " " << min_z << endl;
-
-	// 计算应该切分成多少快
-    const int xBlockNum = (max_x - min_x) / gridLength;
-    const int yBlockNum = (max_y - min_y) / gridLength;
-    const int zBlockNum = (max_z - min_z) / gridLength;
-    Grid subClouds[xBlockNum+1][yBlockNum+1][zBlockNum+1];
+	totalRunTime[0].proTime = clock() - totalRunTime[0].proTime;
+	cout << totalRunTime[0].proName << " time:" << totalRunTime[0].proTime << endl;
 
 	// 将不同的点根据其坐标分配到不同的栅格里
-    for(int i = 0; i < cloud->size(); i++){
-        pcl::PointXYZI point = cloud->points[i];
-
+	totalRunTime[1].proTime = clock();
+    for(auto point : cloud->points){
         const int xPos = (point.x - min_x) / gridLength;
         const int yPos = (point.y - min_y) / gridLength;
         const int zPos = (point.z - min_z) / gridLength;
-
-        subClouds[xPos][yPos][zPos].push_back(point);
+        subClouds["("+std::to_string(xPos)+","
+					 +std::to_string(yPos)+","
+					 +std::to_string(zPos)+")"].push_back(point);
     }
+	totalRunTime[1].proTime = clock() - totalRunTime[1].proTime;
+	cout << totalRunTime[1].proName << " time:" << totalRunTime[1].proTime << endl;
 
 	// 将栅格中的所有点用一个带有 Surfel 特征的中心点代表
-    for(int i = 0; i < zBlockNum; i++){
-        for(int j = 0; j < yBlockNum; j++){
-            for(int k = 0; k < xBlockNum; k++){
-                if(subClouds[k][j][i].empty()) continue;
-                surfelCloud->push_back(genSurfel(subClouds[k][j][i]));
-            }
-        }
+	totalRunTime[2].proTime = clock();
+    for(auto subCloud : subClouds){
+		if(subCloud.second.empty()) continue;
+		surfelCloud->push_back(genSurfel(subCloud.second));
     }
+	totalRunTime[2].proTime = clock() - totalRunTime[2].proTime;
+	cout << totalRunTime[2].proName << " time:" << totalRunTime[2].proTime << endl;
 
     cout << "\nSurfel extract complete!\n" << "Surfel map size: " << surfelCloud->size() << endl;
 
+	// 将统计数据写入 csv 文件
+	std::ofstream csvFile;
+	csvFile.open("div.csv",ios::app);
+	csvFile << gridLength << "," << totalRunTime[0].proTime << "," << totalRunTime[1].proTime << "," << totalRunTime[2].proTime << endl;
+	cout << "total run time:" << gridLength << "," << totalRunTime[0].proTime << "," << totalRunTime[1].proTime << "," << totalRunTime[2].proTime << endl;
+	csvFile.close();
 
 	// 显示部分
     pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
@@ -107,17 +107,7 @@ int main(int argc, char* argv[]){
         viewer->addCone (coeffs, "cone" + std::to_string(i));
     }
 
-
-/*
-    pcl::PointXYZINormal p = surfelCloud->points[0];
-    pcl::PointXYZ p1(p.x,p.y,p.z);
-    pcl::PointXYZ p2((p.x+p.normal_x)*atan(p.intensity),
-                    (p.y+p.normal_y)*atan(p.intensity),
-                    (p.z+p.normal_z)*atan(p.intensity));
-    viewer->addArrow(p1,p2,1.0,1.0,1.0,"arrow" + std::to_string(0));
-*/
-    while (!viewer->wasStopped())
-    {
+    while (!viewer->wasStopped()){
         viewer->spinOnce(100);
         boost::this_thread::sleep(boost::posix_time::microseconds (100000));
     }
