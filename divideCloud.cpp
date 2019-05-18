@@ -1,11 +1,9 @@
 #include "ioVis.h"
-#include <pcl/filters/voxel_grid.h>
 #include <vector>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <math.h>
 
 #define gridLength 1.0
-#define Pos(x,y,z) (x + y*(xBlockNum) + z*(xBlockNum)*(yBlockNum))
 
 struct ProTime{
 	std::string proName;

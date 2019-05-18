@@ -1,11 +1,10 @@
 #include "ioVis.h"
-#include <pcl/filters/voxel_grid.h>
 #include <vector>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <math.h>
 
-#define gridLength 1.5
+#define gridLength 0.5
 
 struct PairPoint{
 	pcl::PointXYZINormal p1;
@@ -42,15 +41,15 @@ int main(int argc, char* argv[]){
 		std::vector<int> idx(1);
 		std::vector<float> distance(1);
 		if(kdtree.nearestKSearch(surfel2->points[i],1,idx,distance) > 0){
-			cout << "Nearest neighbor search at (" << surfel2->points[i].x
-				 << " " << surfel2->points[i].y
-				 << " " << surfel2->points[i].z
-				 << ") ";
+			// cout << "Nearest neighbor search at (" << surfel2->points[i].x
+			// 	 << " " << surfel2->points[i].y
+			// 	 << " " << surfel2->points[i].z
+			// 	 << ") ";
 
-			cout << "    " << surfel1->points[idx[0]].x
-				 << " " << surfel1->points[idx[0]].y
-				 << " " << surfel1->points[idx[0]].z
-				 << " (distance: " << distance[0] << ")" << endl;
+			// cout << "    " << surfel1->points[idx[0]].x
+			// 	 << " " << surfel1->points[idx[0]].y
+			// 	 << " " << surfel1->points[idx[0]].z
+			// 	 << " (distance: " << distance[0] << ")" << endl;
 
 			PairPoint p = {surfel1->points[idx[0]],surfel2->points[i]};
 			points.push_back(p);
@@ -277,58 +276,33 @@ int eejcb(float a[], int n, float v[], float eps, int jt) {
 } 
 
 SurfelCloudPtr cloud2Surfel(XYZICloudPtr cloud){
-    SurfelCloudPtr surfelCloud(new SurfelCloud);
-    float max_x,min_x = 0;
-    float max_y,min_y = 0;
-    float max_z,min_z = 0;
+	SurfelCloudPtr surfelCloud(new SurfelCloud);
+	std::map<std::string,Grid> subClouds;
+    float min_x = 0;
+    float min_y = 0;
+    float min_z = 0;
 
 	// 找到点云数据的边界
-    for (int i=0; i < cloud->size(); i++) 
-    {
-        pcl::PointXYZ point;
-        point.x = cloud->points[i].x;
-        point.y = cloud->points[i].y;
-        point.z = cloud->points[i].z;
-
-        max_x = point.x > max_x ? point.x : max_x;
+    for (auto point : cloud->points) {
         min_x = point.x < min_x ? point.x : min_x;
-
-        max_y = point.y > max_y ? point.y : max_y;
         min_y = point.y < min_y ? point.y : min_y;
-
-        max_z = point.z > max_z ? point.z : max_z;
         min_z = point.z < min_z ? point.z : min_z;
     }
 
-    // cout << "x 边界 " <<max_x << " " << min_x << endl;
-    // cout << "y 边界 " <<max_y << " " << min_y << endl;
-    // cout << "z 边界 " <<max_z << " " << min_z << endl;
-
-	// 计算应该切分成多少快
-    const int xBlockNum = (max_x - min_x) / gridLength;
-    const int yBlockNum = (max_y - min_y) / gridLength;
-    const int zBlockNum = (max_z - min_z) / gridLength;
-    Grid subClouds[xBlockNum+1][yBlockNum+1][zBlockNum+1];
-
 	// 将不同的点根据其坐标分配到不同的栅格里
-    for(int i = 0; i < cloud->size(); i++){
-        pcl::PointXYZI point = cloud->points[i];
-
+    for(auto point : cloud->points){
         const int xPos = (point.x - min_x) / gridLength;
         const int yPos = (point.y - min_y) / gridLength;
         const int zPos = (point.z - min_z) / gridLength;
-
-        subClouds[xPos][yPos][zPos].push_back(point);
+        subClouds["("+std::to_string(xPos)+","
+					 +std::to_string(yPos)+","
+					 +std::to_string(zPos)+")"].push_back(point);
     }
 
 	// 将栅格中的所有点用一个带有 Surfel 特征的中心点代表
-    for(int i = 0; i < zBlockNum; i++){
-        for(int j = 0; j < yBlockNum; j++){
-            for(int k = 0; k < xBlockNum; k++){
-                if(subClouds[k][j][i].empty()) continue;
-                surfelCloud->push_back(genSurfel(subClouds[k][j][i]));
-            }
-        }
+    for(auto subCloud : subClouds){
+		if(subCloud.second.empty()) continue;
+		surfelCloud->push_back(genSurfel(subCloud.second));
     }
 
     cout << "\nSurfel extract complete!\n" << "Surfel map size: " << surfelCloud->size() << endl;
